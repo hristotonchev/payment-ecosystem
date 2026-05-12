@@ -1,0 +1,31 @@
+# Symfony
+.env.local
+.env.local.php
+.env.*.local
+/var/
+/vendor/
+
+# Service vendors and build artefacts
+payment-gateway/vendor/
+payment-gateway/var/
+fraud-engine/vendor/
+fraud-engine/var/
+notification-service/vendor/
+notification-service/var/
+
+# Secrets
+/config/secrets/prod/prod.decrypt.private.php
+/public/bundles/
+
+# Composer
+composer.lock
+*/composer.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

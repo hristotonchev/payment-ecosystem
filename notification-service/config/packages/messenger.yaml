@@ -1,0 +1,42 @@
+framework:
+    messenger:
+        failure_transport: failed_transport
+
+        serializer:
+            default_serializer: messenger.transport.symfony_serializer
+            symfony_serializer:
+                format: json
+
+        transports:
+            # Consume: PaymentNotificationMessage from Payment Gateway
+            # Retry: 3 attempts with exponential backoff (1s, 2s, 5s)
+            payment_notification:
+                dsn: '%env(RABBITMQ_DSN)%'
+                options:
+                    exchange:
+                        name: payment.events
+                        type: direct
+                    queues:
+                        payment.notification.queue:
+                            binding_keys: [payment.notification]
+                retry_strategy:
+                    max_retries: 3
+                    delay: 1000
+                    multiplier: 2
+                    max_delay: 32000
+
+            # Failed messages (any retries exhausted)
+            failed_transport:
+                dsn: '%env(RABBITMQ_DSN)%'
+                options:
+                    exchange:
+                        name: payment.events.dlq
+                        type: direct
+                        default_publish_routing_key: payment.failed
+                    queues:
+                        payment.failed.queue:
+                            binding_keys: [payment.failed]
+
+        routing:
+            'App\Message\PaymentNotificationMessage': payment_notification
+

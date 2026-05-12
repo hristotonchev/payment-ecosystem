@@ -1,0 +1,6 @@
+framework:
+    messenger:
+        transports:
+            payment_initiated:    'in-memory://'
+            payment_processed:    'in-memory://'
+            payment_notification: 'in-memory://'

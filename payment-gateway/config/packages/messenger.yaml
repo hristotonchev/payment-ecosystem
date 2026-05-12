@@ -1,0 +1,67 @@
+framework:
+    messenger:
+        failure_transport: failed_transport
+
+        serializer:
+            default_serializer: messenger.transport.symfony_serializer
+            symfony_serializer:
+                format: json
+
+        transports:
+            # Publish: PaymentInitiatedMessage (no consumer here)
+            payment_initiated:
+                dsn: '%env(RABBITMQ_DSN)%'
+                options:
+                    exchange:
+                        name: payment.events
+                        type: direct
+                        default_publish_routing_key: payment.initiated
+                    queues:
+                        payment.initiated.queue:
+                            binding_keys: [payment.initiated]
+
+            # Consume: PaymentProcessedMessage from Fraud Engine
+            # Retry: 3 attempts with exponential backoff (1s, 2s, 5s)
+            payment_processed:
+                dsn: '%env(RABBITMQ_DSN)%'
+                options:
+                    exchange:
+                        name: payment.events
+                        type: direct
+                    queues:
+                        payment.processed.queue:
+                            binding_keys: [payment.processed]
+                retry_strategy:
+                    max_retries: 3
+                    delay: 1000
+                    multiplier: 2
+                    max_delay: 32000
+
+            # Publish: PaymentNotificationMessage (no consumer here)
+            payment_notification:
+                dsn: '%env(RABBITMQ_DSN)%'
+                options:
+                    exchange:
+                        name: payment.events
+                        type: direct
+                        default_publish_routing_key: payment.notification
+                    queues:
+                        payment.notification.queue:
+                            binding_keys: [payment.notification]
+
+            # Failed messages (any retries exhausted)
+            failed_transport:
+                dsn: '%env(RABBITMQ_DSN)%'
+                options:
+                    exchange:
+                        name: payment.events.dlq
+                        type: direct
+                        default_publish_routing_key: payment.failed
+                    queues:
+                        payment.failed.queue:
+                            binding_keys: [payment.failed]
+
+        routing:
+            'App\Message\PaymentInitiatedMessage':     payment_initiated
+            'App\Message\PaymentNotificationMessage':  payment_notification
+            'App\Message\PaymentProcessedMessage':     payment_processed

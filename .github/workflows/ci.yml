@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  payment-gateway:
+    name: "Service A — Payment Gateway"
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: payments_test
+          MYSQL_USER: payments
+          MYSQL_PASSWORD: payments
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u root -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
+
+      rabbitmq:
+        image: rabbitmq:3.13
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd="rabbitmq-diagnostics ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: amqp, pdo_mysql, intl
+          coverage: none
+
+      - name: Install dependencies
+        working-directory: payment-gateway
+        run: composer install --no-progress --prefer-dist --optimize-autoloader
+
+      - name: Run migrations
+        working-directory: payment-gateway
+        env:
+          APP_ENV: test
+          APP_SECRET: test-secret
+          DATABASE_URL: "mysql://payments:payments@127.0.0.1:3306/payments_test?serverVersion=8.0&charset=utf8mb4"
+          RABBITMQ_DSN: "amqp://guest:guest@127.0.0.1:5672/%2f"
+          ADMIN_EMAIL: "admin@example.com"
+        run: php bin/console doctrine:migrations:migrate --no-interaction
+
+      - name: Run tests
+        working-directory: payment-gateway
+        env:
+          APP_ENV: test
+          APP_SECRET: test-secret
+          DATABASE_URL: "mysql://payments:payments@127.0.0.1:3306/payments_test?serverVersion=8.0&charset=utf8mb4"
+          RABBITMQ_DSN: "amqp://guest:guest@127.0.0.1:5672/%2f"
+          ADMIN_EMAIL: "admin@example.com"
+        run: php vendor/bin/phpunit --testdox
+
+  fraud-engine:
+    name: "Service B — Fraud Engine"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: amqp
+          coverage: none
+
+      - name: Install dependencies
+        working-directory: fraud-engine
+        run: composer install --no-progress --prefer-dist --optimize-autoloader
+
+      - name: Run tests
+        working-directory: fraud-engine
+        run: php vendor/bin/phpunit --testdox
+
+  notification-service:
+    name: "Service C — Notification Manager"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: amqp
+          coverage: none
+
+      - name: Install dependencies
+        working-directory: notification-service
+        run: composer install --no-progress --prefer-dist --optimize-autoloader
+
+      - name: Run tests
+        working-directory: notification-service
+        run: php vendor/bin/phpunit --testdox
