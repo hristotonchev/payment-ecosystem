@@ -409,22 +409,3 @@ docker compose logs -f notification-service | grep -i mail
 
 ---
 
-## 📄 License
-
-Proprietary — Payment Ecosystem 2025
-
----
-
-## 🤝 Contributing
-
-1. Create a feature branch off `main`.
-2. Make changes to one service in isolation.
-3. Add/update tests locally: `make test-gateway` (etc.).
-4. Push and open a PR.
-5. CI validates all three services independently.
-
----
-
-**Last Updated:** May 12, 2025  
-**Maintainer:** Payment Ecosystem Team
-

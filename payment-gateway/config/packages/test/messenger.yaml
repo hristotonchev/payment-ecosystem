@@ -4,3 +4,4 @@ framework:
             payment_initiated:    'in-memory://'
             payment_processed:    'in-memory://'
             payment_notification: 'in-memory://'
+            failed_transport:     'in-memory://'
