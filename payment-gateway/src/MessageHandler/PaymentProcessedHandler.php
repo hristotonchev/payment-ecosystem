@@ -32,6 +32,9 @@ class PaymentProcessedHandler
         $transaction = $this->transactions->findOrFail($message->transactionId);
 
         if ($message->highRisk) {
+            $transaction->reject();
+            $this->transactions->save($transaction);
+
             $this->bus->dispatch(new PaymentNotificationMessage(
                 transactionId:  $message->transactionId,
                 recipientEmail: $this->adminEmail,
@@ -42,7 +45,7 @@ class PaymentProcessedHandler
                 correlationId:  $message->correlationId,
             ));
 
-            $this->logger->warning('High-risk payment flagged, admin notified', [
+            $this->logger->warning('High-risk payment rejected, admin notified', [
                 'transaction_id' => $message->transactionId,
                 'correlation_id' => $message->correlationId,
             ]);

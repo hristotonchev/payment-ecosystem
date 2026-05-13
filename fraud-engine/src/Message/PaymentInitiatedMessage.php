@@ -10,6 +10,7 @@ final class PaymentInitiatedMessage
         public readonly float  $amount,
         public readonly string $currency,
         public readonly string $paymentMethod,
+        public readonly string $customerEmail,
         public readonly string $correlationId,
     ) {}
 }

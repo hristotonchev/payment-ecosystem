@@ -92,6 +92,53 @@ class PaymentControllerTest extends WebTestCase
         $this->assertResponseStatusCodeSame(422);
     }
 
+    public function test_confirm_happy_path_accepts_transaction_and_dispatches_notification(): void
+    {
+        $client = self::createClient();
+
+        // Step 1 — create a transaction
+        $client->request(
+            'POST',
+            '/api/payments/initiate',
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode([
+                'user_id'        => 'user-200',
+                'amount'         => 75.00,
+                'currency'       => 'EUR',
+                'payment_method' => 'debit_card',
+                'customer_email' => 'happy@example.com',
+            ])
+        );
+
+        $this->assertResponseStatusCodeSame(201);
+        $initBody = json_decode($client->getResponse()->getContent(), true);
+        $transactionId = $initBody['transaction_id'];
+
+        // Step 2 — confirm it
+        $client->request('POST', sprintf('/api/payments/%s/confirm', $transactionId));
+
+        $this->assertResponseStatusCodeSame(200);
+        $confirmBody = json_decode($client->getResponse()->getContent(), true);
+        $this->assertSame($transactionId, $confirmBody['transaction_id']);
+        $this->assertSame('accepted', $confirmBody['status']);
+
+        // Step 3 — verify DB status
+        /** @var EntityManagerInterface $em */
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        $em->clear();
+        $transaction = $em->find(Transaction::class, $transactionId);
+
+        $this->assertNotNull($transaction);
+        $this->assertSame(TransactionStatus::Accepted, $transaction->getStatus());
+
+        // Step 4 — notification message was dispatched
+        /** @var InMemoryTransport $transport */
+        $transport = self::getContainer()->get('messenger.transport.payment_notification');
+        $this->assertCount(1, $transport->getSent());
+    }
+
     public function test_confirm_returns_404_for_unknown_transaction(): void
     {
         $client = self::createClient();

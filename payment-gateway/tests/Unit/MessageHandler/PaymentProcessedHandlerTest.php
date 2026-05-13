@@ -51,12 +51,12 @@ class PaymentProcessedHandlerTest extends TestCase
         ($this->handler)($this->buildMessage(highRisk: false));
     }
 
-    public function test_high_risk_notifies_admin_without_accepting(): void
+    public function test_high_risk_rejects_transaction_and_notifies_admin(): void
     {
         $transaction = $this->buildTransaction();
 
         $this->transactions->method('findOrFail')->willReturn($transaction);
-        $this->transactions->expects($this->never())->method('save');
+        $this->transactions->expects($this->once())->method('save');
 
         $this->bus->expects($this->once())
             ->method('dispatch')
@@ -69,6 +69,8 @@ class PaymentProcessedHandlerTest extends TestCase
             ->willReturn(new Envelope(new \stdClass()));
 
         ($this->handler)($this->buildMessage(highRisk: true));
+
+        $this->assertSame(\App\Enum\TransactionStatus::Rejected, $transaction->getStatus());
     }
 
     public function test_correlation_id_is_propagated_to_notification(): void

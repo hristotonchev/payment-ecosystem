@@ -64,4 +64,3 @@ framework:
         routing:
             'App\Message\PaymentInitiatedMessage':     payment_initiated
             'App\Message\PaymentNotificationMessage':  payment_notification
-            'App\Message\PaymentProcessedMessage':     payment_processed

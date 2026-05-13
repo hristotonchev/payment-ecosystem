@@ -37,12 +37,44 @@ class PaymentInitiatedHandlerTest extends TestCase
             amount: 100.0,
             currency: 'USD',
             paymentMethod: 'credit_card',
+            customerEmail: 'customer@example.com',
             correlationId: 'corr-789',
         );
 
         $this->busMock->expects($this->once())
             ->method('dispatch')
-            ->with($this->isInstanceOf(PaymentProcessedMessage::class))
+            ->with($this->callback(function (PaymentProcessedMessage $msg) {
+                $this->assertSame('txn-123', $msg->transactionId);
+                $this->assertSame('corr-789', $msg->correlationId);
+                $this->assertFalse($msg->highRisk);
+                $this->assertGreaterThanOrEqual(0.0, $msg->riskScore);
+                $this->assertNotEmpty($msg->reason);
+                return true;
+            }))
+            ->willReturn(new Envelope(new \stdClass()));
+
+        ($this->handler)($message);
+    }
+
+    public function test_high_risk_amount_sets_high_risk_flag(): void
+    {
+        $message = new PaymentInitiatedMessage(
+            transactionId: 'txn-999',
+            userId: 'user-1',
+            amount: 5000.0,
+            currency: 'EUR',
+            paymentMethod: 'bank_transfer',
+            customerEmail: 'big@spender.com',
+            correlationId: 'corr-999',
+        );
+
+        $this->busMock->expects($this->once())
+            ->method('dispatch')
+            ->with($this->callback(function (PaymentProcessedMessage $msg) {
+                $this->assertTrue($msg->highRisk);
+                $this->assertGreaterThan(0.5, $msg->riskScore);
+                return true;
+            }))
             ->willReturn(new Envelope(new \stdClass()));
 
         ($this->handler)($message);
